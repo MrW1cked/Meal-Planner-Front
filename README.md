@@ -1,47 +1,117 @@
-# Getting Started with Create React App
+# Meal Planner Frontend
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This repository contains the frontend portion of the Meal Planner application built with React. The frontend consumes the backend APIs to display and manage meals and pantry items through a modern, drag & drop interface.
 
-## Available Scripts
+## Technologies Used
 
-In the project directory, you can run:
+- **React** for building the user interface.
+- **Axios** for HTTP requests.
+- **CSS/SCSS** for styling.
+- **React Pro Sidebar** for the sidebar component.
 
-### `npm start`
+## Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+- **Dynamic Calendar View**: Displays all months and days of the selected year with a fixed column for meal types.
+- **Drag & Drop Functionality**:
+  - Drag items from the pantry to add new meals.
+  - Move existing meals between days by dragging.
+  - Drop meals onto the sidebar (or designated area) to delete them.
+- **Responsive Design**: Horizontal scrolling for days if the screen width is exceeded; vertical space remains fixed.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+## Getting Started
 
-### `npm test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (v14 or later)
+- npm (v6+) or yarn
 
-### `npm run build`
+### Installation
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Clone the repository:**
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+   ```bash
+   git clone https://github.com/MrW1cked/Meal-Planner-Front.git
+   cd Meal-Planner-Front
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. **Install dependencies:**
 
-### `npm run eject`
+   Using npm:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+   ```bash
+   npm install
+   ```
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+   Or using yarn:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+   ```bash
+   yarn install
+   ```
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+3. **Start the development server:**
 
-## Learn More
+   Using npm:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+   ```bash
+   npm start
+   ```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
-# Meal-Planner-Front
+   Or using yarn:
+
+   ```bash
+   yarn start
+   ```
+
+   The application will start on [http://localhost:3000](http://localhost:3000).
+
+## Configuration
+
+The frontend is configured to communicate with the backend endpoints. By default, it uses the following URL for API calls:
+
+```
+http://localhost:9998/api/v1/meals
+```
+
+Make sure the backend is running. The backend repository is available here:
+
+[Meal Planner Backend](https://github.com/MrW1cked/Meal-Planner-Back.git)
+
+## Project Structure
+
+- **src/**
+  - **components/**: Contains reusable UI components (e.g., Sidebar).
+  - **pages/**: Contains page-level components (e.g., MainScreen).
+  - **types/**: TypeScript interfaces for data models (e.g., Meal, PantryItem).
+  - **App.tsx**: Main application component that integrates the Sidebar and MainScreen.
+  - **index.tsx**: Entry point for the React application.
+
+## API Endpoints
+
+The frontend interacts with the backend API. For detailed API documentation, please refer to the backend repository's README or Swagger/OpenAPI documentation.
+
+Key endpoints include:
+
+- `GET /api/v1/meals/year/{year}/all` - Retrieves all meals for a given year.
+- `GET /api/v1/meals/pantry/all` - Retrieves all pantry items.
+- `POST /api/v1/meals/add/{id}?newDate={date}&mealType={type}` - Adds a new meal based on a pantry item.
+- `PUT /api/v1/meals/update/{id}?newDate={date}&mealType={type}` - Updates an existing meal (move to new date/type).
+- `DELETE /api/v1/meals/delete/{id}` - Deletes a meal.
+
+## Contributing
+
+1. Fork the repository.
+2. Create a new branch for your feature or bug fix:  
+   `git checkout -b feature/your-feature`
+3. Commit your changes and push the branch.
+4. Open a pull request with a clear description of your changes.
+
+## License
+
+This project does not have a specified license. Please contact the maintainers for more information.
+
+---
+
+We hope you enjoy using the Meal Planner Frontend! If you have any questions or suggestions, feel free to open an issue or contact the maintainers.
+
+**Backend Repository:** [Meal Planner Backend](https://github.com/MrW1cked/Meal-Planner-Back.git)
+
