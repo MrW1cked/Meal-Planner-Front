@@ -1,6 +1,6 @@
 # Meal Planner Frontend
 
-![Screenshot](./src/main/resources/images/FrontImage.png)
+![Screenshot](src/images/FrontImage.png)
 
 This repository contains the frontend portion of the Meal Planner application built with React. The frontend consumes the backend APIs to display and manage meals and pantry items through a modern, drag & drop interface.
 

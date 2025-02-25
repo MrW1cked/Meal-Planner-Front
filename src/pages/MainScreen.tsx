@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Meal } from '../types/Meal';
 import { PantryItem } from '../types/PantryItem';
 
-// Tipos de refeição
+// Mapeamento dos tipos de refeição: valor do backend → label exibido
 const MEAL_TYPES = [
   { frontLabel: 'Peq. Almoço', backendValue: 'BREAKFAST' },
   { frontLabel: 'Almoço',      backendValue: 'LUNCH' },
@@ -11,14 +11,19 @@ const MEAL_TYPES = [
   { frontLabel: 'Snack',       backendValue: 'SNACK' },
 ];
 
-// Nomes dos meses
+// Nomes dos meses em português
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
 ];
 
-// Dia da semana em português
+// Dias da semana em português
 const WEEK_DAYS_PT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+interface MonthCost {
+  month: number;
+  cost: number;
+}
 
 interface MainScreenProps {
   meals: Meal[];
@@ -28,6 +33,7 @@ interface MainScreenProps {
   draggingMeal: Meal | null;
   setDraggingMeal: React.Dispatch<React.SetStateAction<Meal | null>>;
   refreshPantry: () => void;
+  monthCosts: MonthCost[];
 }
 
 const MainScreen: React.FC<MainScreenProps> = ({
@@ -37,95 +43,106 @@ const MainScreen: React.FC<MainScreenProps> = ({
   setDraggingIngredient,
   draggingMeal,
   setDraggingMeal,
-  refreshPantry
+  refreshPantry,
+  monthCosts,
 }) => {
   const year = 2025;
   const months = Array.from({ length: 12 }, (_, i) => i + 1);
 
-  // Agrupamento: { [month]: { [day]: { [mealType]: Meal[] } } }
+  // Agrupa os meals por mês, dia e tipo (permitindo múltiplos itens)
   const mealMap: Record<number, Record<number, Record<string, Meal[]>>> = {};
   meals.forEach((meal) => {
     const dateObj = new Date(meal.date);
     const m = dateObj.getMonth() + 1;
     const d = dateObj.getDate();
-
-    mealMap[m] = mealMap[m] || {};
-    mealMap[m][d] = mealMap[m][d] || {};
-    mealMap[m][d][meal.mealType] = mealMap[m][d][meal.mealType] || [];
+    if (!mealMap[m]) mealMap[m] = {};
+    if (!mealMap[m][d]) mealMap[m][d] = {};
+    if (!mealMap[m][d][meal.mealType]) mealMap[m][d][meal.mealType] = [];
     mealMap[m][d][meal.mealType].push(meal);
   });
 
-  // Gera dias de um mês
-  function getDaysInMonth(y: number, m: number) {
+  // Função para gerar os dias do mês
+  function getDaysInMonth(y: number, m: number): number[] {
     const date = new Date(y, m, 0);
     return Array.from({ length: date.getDate() }, (_, i) => i + 1);
   }
 
-  // POST: Adicionar meal
+  // POST: Adicionar novo meal a partir de um item da pantry
   const handleMealAdd = (month: number, day: number, mealType: string) => {
     if (!draggingIngredient) return;
     const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-    const wd = new Date(newDate).getDay();
-    const dayOfWeek = WEEK_DAYS_PT[wd] || 'Seg';
-
-    axios.post(`http://localhost:9998/api/v1/meals/add/${draggingIngredient.id}?newDate=${newDate}&mealType=${mealType}`)
+    const weekDayIndex = new Date(newDate).getDay();
+    const computedDayOfWeek = WEEK_DAYS_PT[weekDayIndex] || 'Seg';
+    const url = `http://localhost:9998/api/v1/meals/add/${draggingIngredient.id}?newDate=${newDate}&mealType=${mealType}`;
+    
+    axios.post(url)
       .then((res) => {
+        console.log('POST OK:', res.data);
         const newMeal: Meal = {
           id: res.data.id || Math.random(),
           date: newDate,
-          dayOfWeek,
-          mealType,
+          dayOfWeek: computedDayOfWeek,
+          mealType: mealType,
           itemType: draggingIngredient.itemType,
           itemName: draggingIngredient.itemName,
           itemColour: draggingIngredient.itemColour,
-          itemPrice: 0,
+          itemPrice: Number(draggingIngredient.itemPricePerDosis) || 0,
         };
         setMeals(prev => [...prev, newMeal]);
         refreshPantry();
       })
-      .catch(err => console.error('Erro ao adicionar refeição:', err))
+      .catch((err) => console.error('Erro ao adicionar refeição:', err))
       .finally(() => {
         setDraggingIngredient(null);
       });
   };
 
-  // PUT: Mover meal
+  // PUT: Mover um meal existente
   const handleMealMove = (month: number, day: number, mealType: string, mealToMove: Meal) => {
     const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-    const wd = new Date(newDate).getDay();
-    const dayOfWeek = WEEK_DAYS_PT[wd] || 'Seg';
-
-    axios.put(`http://localhost:9998/api/v1/meals/update/${mealToMove.id}?newDate=${newDate}&mealType=${mealType}`)
+    const weekDayIndex = new Date(newDate).getDay();
+    const computedDayOfWeek = WEEK_DAYS_PT[weekDayIndex] || 'Seg';
+    const url = `http://localhost:9998/api/v1/meals/update/${mealToMove.id}?newDate=${newDate}&mealType=${mealType}`;
+    
+    axios.put(url)
       .then(() => {
         const updatedMeal: Meal = {
           ...mealToMove,
           date: newDate,
-          dayOfWeek,
-          mealType
+          dayOfWeek: computedDayOfWeek,
+          mealType: mealType,
         };
-        setMeals(prev => prev.map(m => (m.id === mealToMove.id ? updatedMeal : m)));
+        setMeals(prev => prev.map(m => m.id === mealToMove.id ? updatedMeal : m));
       })
-      .catch(err => console.error('Erro ao mover refeição:', err))
+      .catch((err) => console.error('Erro ao mover refeição:', err))
       .finally(() => {
         setDraggingMeal(null);
       });
   };
 
+  // Cálculo do total de um dia (soma de itemPrice de todos os meals do dia)
+  const getDayTotal = (month: number, day: number): number => {
+    const dayData = mealMap[month]?.[day];
+    if (!dayData) return 0;
+    return Object.values(dayData).reduce((total, mealsArr) => {
+      return total + mealsArr.reduce((sum, meal) => sum + Number(meal.itemPrice), 0);
+    }, 0);
+  };
+
   return (
     <div style={{ padding: '0 10px' }}>
-      <h2 style={{ marginBottom: '20px' }}>Planeador de Refeições</h2>
+      <h2 style={{ marginBottom: '20px' }}>Meal Planner</h2>
 
       {months.map((month) => {
         const days = getDaysInMonth(year, month);
         const monthName = MONTH_NAMES[month - 1];
+        // Obter o total do mês a partir dos dados do backend (prop monthCosts)
+        const monthCost = monthCosts.find(mc => mc.month === month)?.cost || 0;
 
-        // Vamos criar 1 + MEAL_TYPES.length linhas (1 p/ cabeçalho + 1 p/ cada tipo)
-        // e 1 + days.length colunas (1 p/ rótulo + 1 p/ cada dia).
-        // Se 1 célula crescer, a linha toda cresce (grid-auto-rows: auto).
-        const totalRows = 1 + MEAL_TYPES.length; // row 1 = header, row 2.. = meal types
-        const totalCols = 1 + days.length;       // col 1 = pinned label, col 2.. = dias
+        // Total de linhas: 1 (header) + MEAL_TYPES.length + 1 (linha de total diário)
+        const totalRows = 1 + MEAL_TYPES.length + 1;
+        // Colunas: 1 (pinned) + days.length
+        const totalCols = 1 + days.length;
 
         return (
           <div key={month} style={{ marginBottom: '30px' }}>
@@ -143,7 +160,7 @@ const MainScreen: React.FC<MainScreenProps> = ({
                   position: 'relative',
                 }}
               >
-                {/* Canto superior esquerdo (col 1, row 1) vazio ou título */}
+                {/* Célula superior esquerda (vazia) */}
                 <div
                   style={{
                     gridRow: 1,
@@ -155,11 +172,9 @@ const MainScreen: React.FC<MainScreenProps> = ({
                     left: 0,
                     zIndex: 2,
                   }}
-                >
-                  {/* Pode exibir algo aqui, se quiser */}
-                </div>
+                ></div>
 
-                {/* Cabeçalhos dos dias (row 1, col 2..N) */}
+                {/* Cabeçalhos dos dias (row 1, colunas 2..N) */}
                 {days.map((day, index) => {
                   const dateObj = new Date(year, month - 1, day);
                   const dayOfWeek = WEEK_DAYS_PT[dateObj.getDay()];
@@ -174,8 +189,8 @@ const MainScreen: React.FC<MainScreenProps> = ({
                         fontWeight: 'bold',
                         borderBottom: '1px solid #ccc',
                         borderRight: '1px solid #ccc',
-                        position: 'relative',
                         lineHeight: '40px',
+                        position: 'relative',
                       }}
                     >
                       {day} {dayOfWeek}
@@ -183,93 +198,136 @@ const MainScreen: React.FC<MainScreenProps> = ({
                   );
                 })}
 
-                {/* Rótulos das refeições (col 1, row 2..N) */}
+                {/* Linhas para cada tipo de refeição */}
                 {MEAL_TYPES.map((mt, rowIndex) => (
-                  <div
-                    key={mt.backendValue}
-                    style={{
-                      gridRow: 2 + rowIndex,
-                      gridColumn: 1,
-                      backgroundColor: '#f0f0f0',
-                      borderBottom: '1px solid #ccc',
-                      borderRight: '1px solid #ccc',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 'bold',
-                      fontSize: '0.7rem',
-                      color: '#555',
-                      position: 'sticky',
-                      left: 0,
-                      zIndex: 2,
-                      minHeight: '60px',
-                    }}
-                  >
-                    {mt.frontLabel}
-                  </div>
+                  <React.Fragment key={mt.backendValue}>
+                    {/* Coluna fixa para rótulo do tipo (sticky) */}
+                    <div
+                      style={{
+                        gridRow: 2 + rowIndex,
+                        gridColumn: 1,
+                        backgroundColor: '#f0f0f0',
+                        borderBottom: '1px solid #ccc',
+                        borderRight: '1px solid #ccc',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 'bold',
+                        fontSize: '0.7rem',
+                        color: '#555',
+                        position: 'sticky',
+                        left: 0,
+                        zIndex: 2,
+                        minHeight: '60px',
+                      }}
+                    >
+                      {mt.frontLabel}
+                    </div>
+
+                    {days.map((day, colIndex) => {
+                      const cellMeals = (mealMap[month]?.[day]?.[mt.backendValue]) || [];
+                      return (
+                        <div
+                          key={`${mt.backendValue}-${day}`}
+                          style={{
+                            gridRow: 2 + rowIndex,
+                            gridColumn: 2 + colIndex,
+                            borderBottom: '1px dashed #ccc',
+                            borderRight: '1px solid #ccc',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '2px',
+                            position: 'relative',
+                            minHeight: '60px',
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={() => {
+                            if (draggingMeal) {
+                              handleMealMove(month, day, mt.backendValue, draggingMeal);
+                            } else if (draggingIngredient) {
+                              handleMealAdd(month, day, mt.backendValue);
+                            }
+                          }}
+                        >
+                          {cellMeals.length > 0 ? (
+                            cellMeals.map((meal) => (
+                              <div
+                                key={meal.id}
+                                draggable
+                                onDragStart={() => setDraggingMeal(meal)}
+                                style={{
+                                  backgroundColor: meal.itemColour || '#e0e0e0',
+                                  margin: '2px 0',
+                                  padding: '2px 4px',
+                                  fontSize: '0.7rem',
+                                  cursor: 'grab',
+                                  borderRadius: '4px',
+                                  border: '1px solid #ccc',
+                                  textAlign: 'center',
+                                  width: '90%',
+                                }}
+                              >
+                                {meal.itemName}
+                              </div>
+                            ))
+                          ) : (
+                            <div style={{ color: '#999', fontSize: '0.7rem' }}>— vazio —</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </React.Fragment>
                 ))}
 
-                {/* Células: row 2..N, col 2..N */}
-                {MEAL_TYPES.map((mt, rowIndex) => (
-                  days.map((day, colIndex) => {
-                    const row = 2 + rowIndex;
-                    const col = 2 + colIndex;
-
-                    const mealsForCell = mealMap[month]?.[day]?.[mt.backendValue] || [];
-
-                    return (
-                      <div
-                        key={`${mt.backendValue}-${day}`}
-                        style={{
-                          gridRow: row,
-                          gridColumn: col,
-                          borderBottom: '1px dashed #ccc',
-                          borderRight: '1px solid #ccc',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          padding: '4px',
-                          position: 'relative',
-                          minHeight: '60px',
-                        }}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={() => {
-                          if (draggingMeal) {
-                            handleMealMove(month, day, mt.backendValue, draggingMeal);
-                          } else if (draggingIngredient) {
-                            handleMealAdd(month, day, mt.backendValue);
-                          }
-                        }}
-                      >
-                        {mealsForCell.length > 0 ? (
-                          mealsForCell.map((meal) => (
-                            <div
-                              key={meal.id}
-                              draggable
-                              onDragStart={() => setDraggingMeal(meal)}
-                              style={{
-                                backgroundColor: meal.itemColour || '#e0e0e0',
-                                margin: '2px 0',
-                                padding: '2px 4px',
-                                fontSize: '0.7rem',
-                                cursor: 'grab',
-                                borderRadius: '4px',
-                                border: '1px solid #ccc',
-                                textAlign: 'center',
-                                width: '90%', // se quiser caber na célula
-                              }}
-                            >
-                              {meal.itemName}
-                            </div>
-                          ))
-                        ) : (
-                          <div style={{ color: '#999', fontSize: '0.7rem' }}>— vazio —</div>
-                        )}
-                      </div>
-                    );
-                  })
-                ))}
+                {/* Linha de total diário (última linha, row = 1 + MEAL_TYPES.length + 1) */}
+                <div
+                  style={{
+                    gridRow: 1 + MEAL_TYPES.length + 1,
+                    gridColumn: 1,
+                    backgroundColor: '#f7f7f7',
+                    borderTop: '1px solid #ccc',
+                    borderRight: '1px solid #ccc',
+                    fontWeight: 'bold',
+                    textAlign: 'center',
+                    padding: '4px',
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 2,
+                  }}
+                >
+                  Total
+                </div>
+                {days.map((day, index) => {
+                  const dayTotal = Object.values(mealMap[month]?.[day] || {}).reduce((sum, mealsArr) => {
+                    return sum + mealsArr.reduce((s, meal) => s + Number(meal.itemPrice), 0);
+                  }, 0);
+                  return (
+                    <div
+                      key={`total-${day}`}
+                      style={{
+                        gridRow: 1 + MEAL_TYPES.length + 1,
+                        gridColumn: 2 + index,
+                        backgroundColor: '#f7f7f7',
+                        textAlign: 'center',
+                        fontWeight: 'bold',
+                        borderTop: '1px solid #ccc',
+                        borderRight: '1px solid #ccc',
+                        lineHeight: '40px',
+                        fontSize: '0.8rem',
+                      }}
+                    >
+                      ${dayTotal.toFixed(2)}
+                    </div>
+                  );
+                })}
               </div>
+            </div>
+
+            {/* Exibição do total do mês abaixo do grid */}
+            <div style={{ textAlign: 'right', marginTop: '5px', fontWeight: 'bold' }}>
+              Month Total: ${monthCosts.find(mc => mc.month === month)?.cost.toFixed(2) || "0.00"}
             </div>
           </div>
         );
